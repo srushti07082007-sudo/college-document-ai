@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>College Document AI Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;0,700;1,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root{
+    --ink:#1B2A41;
+    --ink-soft:#334862;
+    --parchment:#F6F1E7;
+    --parchment-dim:#EEE6D6;
+    --card:#FFFDF8;
+    --gold:#B4842A;
+    --gold-soft:#E7CFA0;
+    --sage:#5B7B62;
+    --maroon:#8B3A3A;
+    --line: rgba(27,42,65,0.14);
+    --shadow: 0 1px 2px rgba(27,42,65,0.08), 0 8px 24px -12px rgba(27,42,65,0.25);
+    --radius: 10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 600px at 10% -10%, #24385730, transparent 60%),
+      var(--parchment);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px;}
+
+  /* ---------- Header ---------- */
+  header.hero{
+    display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;
+    gap:16px;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:18px;
+    margin-bottom:28px;
+  }
+  .plate{display:flex;align-items:center;gap:14px;}
+  .plate .mark{
+    width:52px;height:52px;border-radius:50%;
+    background:var(--ink);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow: var(--shadow);
+    flex-shrink:0;
+  }
+  .plate .mark svg{width:26px;height:26px;}
+  h1{
+    font-family:'Lora',serif;
+    font-weight:700;
+    font-size:clamp(24px,4vw,34px);
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .subtitle{
+    margin:4px 0 0;
+    color:var(--ink-soft);
+    font-size:15px;
+  }
+  .index-stat{
+    font-family:'JetBrains Mono',monospace;
+    font-size:12px;
+    color:var(--ink-soft);
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:7px 14px;
+    box-shadow:var(--shadow);
+  }
+  .index-stat b{color:var(--gold);}
+
+  /* ---------- Layout ---------- */
+  .grid{
+    display:grid;
+    grid-template-columns: 340px 1fr;
+    gap:22px;
+    align-items:start;
+  }
+  @media (max-width: 860px){ .grid{grid-template-columns:1fr;} }
+
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:20px;
+  }
+  .card + .card{margin-top:18px;}
+  .card h2{
+    font-family:'Lora',serif;
+    font-size:17px;
+    margin:0 0 4px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .card p.hint{
+    margin:0 0 14px;
+    color:var(--ink-soft);
+    font-size:13px;
+    line-height:1.5;
+  }
+
+  /* ---------- Upload ---------- */
+  .dropzone{
+    border:1.5px dashed var(--gold-soft);
+    border-radius:8px;
+    background: repeating-linear-gradient(135deg, #FBF7EE, #FBF7EE 10px, #F7F0E1 10px, #F7F0E1 20px);
+    padding:22px 16px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .dropzone:hover{border-color:var(--gold);}
+  .dropzone svg{width:26px;height:26px;color:var(--gold);margin-bottom:8px;}
+  .dropzone .label{font-weight:600;font-size:14px;}
+  .dropzone .sub{font-size:12px;color:var(--ink-soft);margin-top:2px;}
+  input[type=file]{display:none;}
+
+  .btn{
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:13.5px;
+    border:none;
+    border-radius:7px;
+    padding:10px 16px;
+    cursor:pointer;
+    transition:transform .08s ease, opacity .15s ease;
+  }
+  .btn:active{transform:scale(0.98);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-primary{background:var(--ink);color:var(--parchment);}
+  .btn-primary:hover:not(:disabled){background:var(--ink-soft);}
+  .btn-gold{background:var(--gold);color:#fff;}
+  .btn-gold:hover:not(:disabled){opacity:.9;}
+  .btn-ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line);}
+  .btn-ghost:hover{background:var(--parchment-dim);}
+  .btn-block{width:100%;}
+
+  /* ---------- Document list ---------- */
+  .doc-row{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 8px;
+    border-radius:7px;
+    border:1px solid transparent;
+  }
+  .doc-row:hover{background:var(--parchment-dim);}
+  .doc-row .ico{
+    width:30px;height:30px;border-radius:6px;
+    background:var(--parchment-dim);
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    font-size:14px;
+  }
+  .doc-row .meta{flex:1;min-width:0;}
+  .doc-row .name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .doc-row .status{font-size:11.5px;margin-top:1px;}
+  .status.ready{color:var(--sage);}
+  .status.processing{color:var(--gold);}
+  .status.error{color:var(--maroon);}
+  .doc-row .remove{
+    background:none;border:none;cursor:pointer;color:var(--ink-soft);
+    font-size:16px;line-height:1;padding:4px;border-radius:5px;
+  }
+  .doc-row .remove:hover{background:var(--parchment-dim);color:var(--maroon);}
+  .spinner{
+    width:12px;height:12px;border-radius:50%;
+    border:2px solid var(--gold-soft);border-top-color:var(--gold);
+    animation:spin .7s linear infinite;display:inline-block;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .empty-note{font-size:12.5px;color:var(--ink-soft);padding:8px;text-align:center;}
+
+  /* ---------- Chat / Ask area ---------- */
+  .examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;}
+  .example-chip{
+    font-size:12px;
+    background:var(--parchment-dim);
+    border:1px solid var(--line);
+    border-radius:100px;
+    padding:6px 12px;
+    cursor:pointer;
+    color:var(--ink-soft);
+  }
+  .example-chip:hover{border-color:var(--gold);color:var(--ink);}
+
+  .ask-row{display:flex;gap:10px;margin-top:14px;}
+  .ask-row input{
+    flex:1;
+    font-family:'Inter',sans-serif;
+    font-size:14px;
+    padding:12px 14px;
+    border-radius:8px;
+    border:1px solid var(--line);
+    background:#fff;
+  }
+  .ask-row input:focus{outline:2px solid var(--gold-soft);outline-offset:1px;}
+
+  .chat-log{margin-top:20px;display:flex;flex-direction:column;gap:22px;}
+  .qa-block .question{
+    font-family:'Lora',serif;
+    font-weight:600;
+    font-size:16px;
+    display:flex;gap:8px;align-items:flex-start;
+  }
+  .qa-block .question .qmark{color:var(--gold);}
+  .answer-box{
+    margin-top:10px;
+    background:var(--parchment-dim);
+    border-left:3px solid var(--gold);
+    border-radius:0 8px 8px 0;
+    padding:14px 16px;
+    font-size:14.5px;
+    line-height:1.65;
+    white-space:pre-wrap;
+  }
+  .answer-box.fallback-note{font-size:11px;color:var(--ink-soft);margin-top:8px;font-style:italic;}
+
+  .sources-label{
+    font-size:11.5px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    color:var(--ink-soft);
+    margin:14px 0 8px;
+    font-weight:700;
+  }
+  .source-cards{display:flex;flex-wrap:wrap;gap:10px;}
+  .source-card{
+    position:relative;
+    background:#fff;
+    border:1px solid var(--line);
+    border-top:3px solid var(--gold);
+    border-radius:6px;
+    padding:10px 12px 10px 14px;
+    min-width:180px;
+    max-width:260px;
+    font-size:12.5px;
+    box-shadow:0 2px 6px rgba(27,42,65,0.06);
+  }
+  .source-card::before{
+    content:'';
+    position:absolute;left:-4px;top:14px;
+    width:8px;height:8px;border-radius:50%;
+    background:var(--parchment);
+    border:1px solid var(--line);
+  }
+  .source-card .doc-name{font-weight:700;display:flex;align-items:center;gap:5px;}
+  .source-card .page-tab{
+    display:inline-block;margin-top:5px;
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;color:var(--gold);
+    background:var(--gold-soft);
+    border-radius:4px;padding:2px 6px;
+  }
+  .source-card .score{color:var(--ink-soft);font-size:10.5px;margin-top:5px;}
+  .source-card .snippet{margin-top:6px;color:var(--ink-soft);font-size:11.5px;line-height:1.4;}
+
+  .empty-chat{
+    text-align:center;padding:40px 10px;color:var(--ink-soft);
+  }
+  .empty-chat .big-icon{font-size:34px;margin-bottom:8px;}
+
+  /* ---------- Pipeline / How it works ---------- */
+  .pipeline-card{margin-top:26px;}
+  .pipeline-steps{
+    display:flex;flex-wrap:wrap;gap:0;
+    margin-top:14px;
+  }
+  .pstep{
+    flex:1;min-width:110px;
+    text-align:center;
+    padding:12px 8px;
+    position:relative;
+  }
+  .pstep .num{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;color:var(--gold);
+  }
+  .pstep .label{font-size:12.5px;font-weight:600;margin-top:4px;}
+  .pstep:not(:last-child)::after{
+    content:'→';
+    position:absolute;right:-2px;top:16px;
+    color:var(--gold-soft);font-size:14px;
+  }
+  @media (max-width:700px){ .pstep:not(:last-child)::after{display:none;} }
+
+  .rag-numbers{display:flex;flex-direction:column;gap:10px;margin-top:14px;}
+  .rag-num{display:flex;gap:12px;align-items:flex-start;font-size:13.5px;}
+  .rag-num .n{
+    font-family:'Lora',serif;font-weight:700;color:var(--gold);
+    width:22px;flex-shrink:0;
+  }
+
+  .banner{
+    border-radius:8px;
+    padding:10px 14px;
+    font-size:13px;
+    margin-bottom:14px;
+    display:flex;gap:8px;align-items:flex-start;
+  }
+  .banner.info{background:#EAF1EE;color:var(--sage);}
+  .banner.error{background:#F6E7E7;color:var(--maroon);}
+
+  footer{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:12px;
+    margin-top:40px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="hero">
+    <div class="plate">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#F6F1E7" stroke-width="1.6"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V4a2 2 0 00-2-2H6.5A2.5 2.5 0 004 4.5v15z"/><path d="M4 19.5A2.5 2.5 0 006.5 22H20"/><path d="M8 7h8M8 11h8M8 15h5" stroke="#B4842A"/></svg>
+      </div>
+      <div>
+        <h1>College Document AI Assistant</h1>
+        <p class="subtitle">Upload your college documents and ask questions in natural language.</p>
+      </div>
+    </div>
+    <div class="index-stat">Index: <b id="statChunks">0</b> chunks across <b id="statDocs">0</b> document(s)</div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT COLUMN -->
+    <div>
+      <div class="card">
+        <h2>📤 Upload Documents</h2>
+        <p class="hint">Upload syllabus, regulations, examination guidelines, scholarship notices or college handbooks (PDF).</p>
+        <label class="dropzone" id="dropzone">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+          <div class="label">Upload PDF</div>
+          <div class="sub">Click to browse or drop files here</div>
+          <input type="file" id="fileInput" accept="application/pdf" multiple>
+        </label>
+        <button class="btn btn-ghost btn-block" id="demoBtn" style="margin-top:10px;">✨ Load Demo Document</button>
+      </div>
+
+      <div class="card">
+        <h2>📚 Uploaded Documents</h2>
+        <div id="docList"><div class="empty-note">No documents yet. Upload a PDF or load the demo to get started.</div></div>
+      </div>
+
+      <div class="card">
+        <h2>⚙ RAG Pipeline</h2>
+        <div class="rag-numbers">
+          <div class="rag-num"><span class="n">1</span><span>Document Processing — extract text &amp; page numbers</span></div>
+          <div class="rag-num"><span class="n">2</span><span>Semantic Retrieval — TF‑IDF vector similarity search</span></div>
+          <div class="rag-num"><span class="n">3</span><span>Context Augmentation — top chunks injected into prompt</span></div>
+          <div class="rag-num"><span class="n">4</span><span>AI Generation — Claude answers strictly from context</span></div>
+          <div class="rag-num"><span class="n">5</span><span>Source Citation — document + page number shown</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div>
+      <div class="card">
+        <h2>💬 Ask a Question</h2>
+        <p class="hint">Ask anything about your uploaded documents. The assistant answers only from retrieved content.</p>
+        <div class="examples" id="examples"></div>
+        <div class="ask-row">
+          <input type="text" id="questionInput" placeholder="What is the minimum attendance required?">
+          <button class="btn btn-gold" id="askBtn">Ask AI</button>
+        </div>
+        <div id="banners"></div>
+      </div>
+
+      <div class="card" style="margin-top:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h2 style="margin:0;">🧠 AI Answer</h2>
+          <button class="btn btn-ghost" id="clearBtn">Clear Chat</button>
+        </div>
+        <div class="chat-log" id="chatLog">
+          <div class="empty-chat">
+            <div class="big-icon">🗂️</div>
+            No conversation yet. Ask a question above to see a sourced answer here.
+          </div>
+        </div>
+      </div>
+
+      <div class="card pipeline-card">
+        <h2>ℹ️ How It Works</h2>
+        <div class="pipeline-steps">
+          <div class="pstep"><div class="num">01</div><div class="label">PDF Upload</div></div>
+          <div class="pstep"><div class="num">02</div><div class="label">Text Extraction</div></div>
+          <div class="pstep"><div class="num">03</div><div class="label">Chunking</div></div>
+          <div class="pstep"><div class="num">04</div><div class="label">Embeddings</div></div>
+          <div class="pstep"><div class="num">05</div><div class="label">Vector Search</div></div>
+          <div class="pstep"><div class="num">06</div><div class="label">Relevant Context</div></div>
+          <div class="pstep"><div class="num">07</div><div class="label">AI Answer</div></div>
+          <div class="pstep"><div class="num">08</div><div class="label">Sources</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Built as a genuine RAG demo — text extraction, TF‑IDF vector retrieval, and grounded generation all run for real, no fake data.</footer>
+</div>
+
+<script>
+/* ======================= CONFIG ======================= */
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const CHUNK_SIZE = 700;
+const CHUNK_OVERLAP = 120;
+const TOP_K = 4;
+const SIM_THRESHOLD = 0.03;
+const STOPWORDS = new Set(['the','and','for','are','with','that','this','from','have','has','was','were','will','shall','been','being','into','onto','than','then','they','their','them','what','which','when','where','who','whom','why','how','can','could','should','would','may','might','must','not','you','your','all','any','also','also','per','via','etc','more','most','some','such','only','own','same','too','very','just','about','above','after','again','before','below','between','both','each','few','further','once','other','out','over','under','while']);
+
+/* ======================= STATE ======================= */
+let documents = []; // {id,name,status,pageCount}
+let allChunks = [];  // {id,doc,page,text,vector,norm}
+let vocab = {};
+let chatHistory = [];
+
+const EXAMPLES = [
+  'What is the minimum attendance requirement?',
+  'How many credits are required to graduate?',
+  'What are the examination eligibility requirements?',
+  'What are the scholarship eligibility criteria?',
+  'How many attempts are allowed?'
+];
+
+/* ======================= DEMO DATA ======================= */
+const DEMO_PAGES = [
+  {page: 24, text: "Attendance Requirements. Students must maintain a minimum attendance of 75 percent in each course to be eligible for university examinations. Students with attendance between 65 and 74 percent may apply for condonation through the Principal, subject to payment of the prescribed fee. Students below 65 percent attendance shall not be permitted to take the semester end examination and shall be detained."},
+  {page: 25, text: "Attendance Exceptions. Attendance shortage due to participation in university-sanctioned sports, NCC, NSS or medical emergencies supported by valid documentation may be condoned by the Vice Principal on a case by case basis, up to a maximum relaxation of 10 percent."},
+  {page: 41, text: "Graduation Credit Requirements. A candidate shall be eligible for the award of the Bachelor's degree only after successfully earning a minimum of 160 credits distributed across core courses, elective courses, laboratory courses, and the mandatory internship or project work, as prescribed in the curriculum structure."},
+  {page: 58, text: "Examination Eligibility. A candidate is eligible to appear for the semester end examination only if the candidate has secured the minimum required attendance and has cleared all continuous internal evaluation components with a minimum aggregate of 40 percent in internal assessments."},
+  {page: 59, text: "Number of Attempts. A candidate is permitted a maximum of four attempts, including the first appearance, to clear a semester end examination in any given course. Candidates who exhaust all attempts must repeat the course as per the repeat-course regulations."},
+  {page: 12, text: "Scholarship Eligibility Criteria. Merit-cum-means scholarships are awarded to students who have secured a minimum of 8.5 CGPA in the preceding academic year and whose family annual income does not exceed the threshold specified by the state scholarship directorate. Applications must be submitted within 30 days of result declaration."},
+];
+
+function loadDemo(){
+  const docName = 'VTU_Regulations.pdf (Demo)';
+  if (documents.find(d=>d.name===docName)) return;
+  const doc = {id: cryptoId(), name: docName, status:'processing', pageCount: DEMO_PAGES.length};
+  documents.push(doc);
+  renderDocs();
+  setTimeout(()=>{
+    const chunks = chunkPages(DEMO_PAGES, docName);
+    allChunks.push(...chunks);
+    doc.status='ready';
+    buildIndex();
+    renderDocs();
+    updateStats();
+    showBanner('info', 'Demo document loaded — try asking "What is the minimum attendance required?"');
+  }, 500);
+}
+
+/* ======================= UTIL ======================= */
+function cryptoId(){ return 'id-'+Math.random().toString(36).slice(2,10)+Date.now().toString(36); }
+function escapeHtml(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+function showBanner(type, msg){
+  const el = document.getElementById('banners');
+  el.innerHTML = `<div class="banner ${type}">${type==='error'?'⚠️':'✓'} ${escapeHtml(msg)}</div>`;
+  setTimeout(()=>{ if(el.firstChild) el.innerHTML=''; }, 6000);
+}
+
+/* ======================= TEXT / TF-IDF ======================= */
+function tokenize(text){
+  return text.toLowerCase().replace(/[^a-z0-9\s]/g,' ').split(/\s+/).filter(w=>w.length>2 && !STOPWORDS.has(w));
+}
+
+function chunkPages(pages, docName){
+  const chunks = [];
+  pages.forEach(p=>{
+    const clean = (p.text||'').replace(/\s+/g,' ').trim();
+    if (!clean) return;
+    let start = 0;
+    while (start < clean.length){
+      const end = Math.min(start+CHUNK_SIZE, clean.length);
+      const chunkText = clean.slice(start,end).trim();
+      if (chunkText.length > 20){
+        chunks.push({id: docName+'::p'+p.page+'::'+start, doc: docName, page: p.page, text: chunkText});
+      }
+      if (end === clean.length) break;
+      start = end - CHUNK_OVERLAP;
+    }
+  });
+  return chunks;
+}
+
+function buildIndex(){
+  const df = {};
+  allChunks.forEach(c=>{
+    const terms = new Set(tokenize(c.text));
+    terms.forEach(t=> df[t]=(df[t]||0)+1);
+  });
+  const N = allChunks.length || 1;
+  vocab = {};
+  Object.keys(df).forEach(t=> vocab[t] = Math.log((N+1)/(df[t]+1)) + 1);
+  allChunks.forEach(c=>{
+    c.vector = vectorize(c.text);
+    c.norm = vecNorm(c.vector);
+  });
+}
+
+function vectorize(text){
+  const terms = tokenize(text);
+  if (!terms.length) return {};
+  const tf = {};
+  terms.forEach(t=> tf[t]=(tf[t]||0)+1);
+  const vec = {};
+  Object.keys(tf).forEach(t=>{
+    if (vocab[t]) vec[t] = (tf[t]/terms.length) * vocab[t];
+  });
+  return vec;
+}
+
+function vecNorm(vec){
+  const s = Object.values(vec).reduce((a,v)=>a+v*v,0);
+  return Math.sqrt(s) || 1e-9;
+}
+
+function cosineSim(vecA, normA, vecB, normB){
+  const [small, big] = Object.keys(vecA).length < Object.keys(vecB).length ? [vecA,vecB] : [vecB,vecA];
+  let dot = 0;
+  for (const k in small){ if (big[k]) dot += small[k]*big[k]; }
+  return dot / (normA*normB);
+}
+
+function retrieve(question, k=TOP_K){
+  if (!allChunks.length) return [];
+  const qVec = vectorize(question);
+  const qNorm = vecNorm(qVec);
+  if (!Object.keys(qVec).length) return [];
+  const scored = allChunks.map(c=>({chunk:c, score: cosineSim(qVec, qNorm, c.vector, c.norm)}));
+  scored.sort((a,b)=>b.score-a.score);
+  return scored.filter(s=>s.score > SIM_THRESHOLD).slice(0,k);
+}
+
+/* ======================= PDF EXTRACTION ======================= */
+async function extractPdf(file){
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+  const pages = [];
+  for (let i=1;i<=pdf.numPages;i++){
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items.map(it=>it.str).join(' ');
+    pages.push({page:i, text});
+  }
+  return pages;
+}
+
+/* ======================= LLM CALL ======================= */
+async function callClaude(question, contextResults){
+  const contextText = contextResults.map((s,i)=> `[Source ${i+1} — ${s.chunk.doc}, Page ${s.chunk.page}]\n${s.chunk.text}`).join('\n\n');
+  const system = `You are a college document assistant. Answer ONLY using the supplied document context. If the answer cannot be found in the supplied context, reply exactly: "I couldn't find this information in the uploaded documents." Do not use outside knowledge to invent an answer. Keep the answer concise (2-5 sentences) and reference which source number(s) support each claim, e.g. (Source 1).`;
+  const userMsg = `Document context:\n\n${contextText}\n\nQuestion: ${question}`;
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      model:'claude-sonnet-4-6',
+      max_tokens:1000,
+      system,
+      messages:[{role:'user', content:userMsg}]
+    })
+  });
+  if (!resp.ok) throw new Error('API_ERROR_'+resp.status);
+  const data = await resp.json();
+  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n').trim();
+  if (!text) throw new Error('EMPTY_RESPONSE');
+  return text;
+}
+
+function extractiveAnswer(question, contextResults){
+  if (!contextResults.length) return "I couldn't find this information in the uploaded documents.";
+  const qTerms = new Set(tokenize(question));
+  let best = null, bestScore = -1;
+  contextResults.forEach(s=>{
+    s.chunk.text.split(/(?<=[.!?])\s+/).forEach(sent=>{
+      const terms = tokenize(sent);
+      const score = terms.filter(t=>qTerms.has(t)).length;
+      if (score > bestScore){ bestScore = score; best = {sent, source:s}; }
+    });
+  });
+  if (!best || bestScore <= 0) return "I couldn't find this information in the uploaded documents.";
+  return `According to the uploaded documents: ${best.sent.trim()}`;
+}
+
+/* ======================= RENDER ======================= */
+function updateStats(){
+  document.getElementById('statChunks').textContent = allChunks.length;
+  document.getElementById('statDocs').textContent = documents.filter(d=>d.status==='ready').length;
+}
+
+function renderDocs(){
+  const el = document.getElementById('docList');
+  if (!documents.length){
+    el.innerHTML = '<div class="empty-note">No documents yet. Upload a PDF or load the demo to get started.</div>';
+    return;
+  }
+  el.innerHTML = documents.map(d=>{
+    let statusHtml;
+    if (d.status==='processing') statusHtml = `<span class="status processing"><span class="spinner"></span> Processing…</span>`;
+    else if (d.status==='error') statusHtml = `<span class="status error">✗ ${escapeHtml(d.error||'Failed to process')}</span>`;
+    else statusHtml = `<span class="status ready">✓ Ready · ${d.pageCount} page${d.pageCount===1?'':'s'}</span>`;
+    return `<div class="doc-row" data-id="${d.id}">
+      <div class="ico">📄</div>
+      <div class="meta">
+        <div class="name" title="${escapeHtml(d.name)}">${escapeHtml(d.name)}</div>
+        <div>${statusHtml}</div>
+      </div>
+      <button class="remove" title="Remove document" onclick="removeDoc('${d.id}')">✕</button>
+    </div>`;
+  }).join('');
+  updateStats();
+}
+
+function renderExamples(){
+  document.getElementById('examples').innerHTML = EXAMPLES.map(q=>
+    `<button class="example-chip" onclick="askExample(this)">${escapeHtml(q)}</button>`
+  ).join('');
+}
+function askExample(btn){
+  document.getElementById('questionInput').value = btn.textContent;
+  handleAsk();
+}
+
+function renderChat(){
+  const el = document.getElementById('chatLog');
+  if (!chatHistory.length){
+    el.innerHTML = `<div class="empty-chat"><div class="big-icon">🗂️</div>No conversation yet. Ask a question above to see a sourced answer here.</div>`;
+    return;
+  }
+  el.innerHTML = chatHistory.map(m=>{
+    const sourcesHtml = m.sources.length ? `
+      <div class="sources-label">Sources Used</div>
+      <div class="source-cards">
+        ${m.sources.map(s=>`
+          <div class="source-card">
+            <div class="doc-name">📄 ${escapeHtml(s.chunk.doc)}</div>
+            <span class="page-tab">📑 Page ${s.chunk.page}</span>
+            <div class="score">similarity ${(s.score*100).toFixed(1)}%</div>
+            <div class="snippet">${escapeHtml(s.chunk.text.slice(0,110))}…</div>
+          </div>
+        `).join('')}
+      </div>` : '';
+    return `<div class="qa-block">
+      <div class="question"><span class="qmark">Q.</span> ${escapeHtml(m.question)}</div>
+      <div class="answer-box">${escapeHtml(m.answer)}</div>
+      ${m.fallback ? '<div class="answer-box fallback-note">⚠ Generated using local extractive fallback (AI generation call unavailable) — still grounded strictly in retrieved source text.</div>' : ''}
+      ${sourcesHtml}
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ======================= HANDLERS ======================= */
+async function handleUpload(files){
+  for (const file of Array.from(files)){
+    if (file.type !== 'application/pdf'){
+      showBanner('error', `"${file.name}" is not a PDF file.`);
+      continue;
+    }
+    const doc = {id: cryptoId(), name: file.name, status:'processing', pageCount:0};
+    documents.push(doc);
+    renderDocs();
+    try {
+      const pages = await extractPdf(file);
+      const hasText = pages.some(p=>p.text && p.text.trim().length>0);
+      if (!hasText){
+        doc.status='error'; doc.error='No extractable text found (scanned image PDF?)';
+        renderDocs();
+        showBanner('error', `${file.name}: no extractable text was found. Scanned/image-only PDFs aren't supported without OCR.`);
+        continue;
+      }
+      const chunks = chunkPages(pages, file.name);
+      allChunks.push(...chunks);
+      doc.status='ready';
+      doc.pageCount = pages.length;
+      buildIndex();
+      renderDocs();
+      showBanner('info', `${file.name} processed — ${pages.length} pages, ${chunks.length} chunks indexed.`);
+    } catch(err){
+      console.error(err);
+      doc.status='error'; doc.error='Failed to read PDF';
+      renderDocs();
+      showBanner('error', `Couldn't process "${file.name}". Please check the file isn't corrupted or password-protected.`);
+    }
+  }
+}
+
+function removeDoc(id){
+  const doc = documents.find(d=>d.id===id);
+  if (!doc) return;
+  documents = documents.filter(d=>d.id!==id);
+  allChunks = allChunks.filter(c=>c.doc!==doc.name);
+  buildIndex();
+  renderDocs();
+}
+
+async function handleAsk(){
+  const input = document.getElementById('questionInput');
+  const question = input.value.trim();
+  if (!question) return;
+  if (!allChunks.length){
+    showBanner('error', 'Upload a document (or load the demo) before asking a question.');
+    return;
+  }
+  const askBtn = document.getElementById('askBtn');
+  askBtn.disabled = true; askBtn.textContent = 'Thinking…';
+  input.value = '';
+
+  const results = retrieve(question);
+  if (!results.length){
+    chatHistory.push({question, answer: "I couldn't find this information in the uploaded documents.", sources: [], fallback:false});
+    renderChat();
+    askBtn.disabled = false; askBtn.textContent = 'Ask AI';
+    return;
+  }
+
+  let answer, fallback = false;
+  try {
+    answer = await callClaude(question, results);
+  } catch(e){
+    console.warn('LLM call failed, using extractive fallback:', e.message);
+    fallback = true;
+    answer = extractiveAnswer(question, results);
+  }
+  chatHistory.push({question, answer, sources: results, fallback});
+  renderChat();
+  askBtn.disabled = false; askBtn.textContent = 'Ask AI';
+}
+
+/* ======================= WIRING ======================= */
+document.getElementById('fileInput').addEventListener('change', e=> handleUpload(e.target.files));
+document.getElementById('demoBtn').addEventListener('click', loadDemo);
+document.getElementById('askBtn').addEventListener('click', handleAsk);
+document.getElementById('questionInput').addEventListener('keydown', e=>{ if(e.key==='Enter') handleAsk(); });
+document.getElementById('clearBtn').addEventListener('click', ()=>{ chatHistory=[]; renderChat(); });
+
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.style.borderColor='var(--gold)'; });
+dz.addEventListener('dragleave', ()=>{ dz.style.borderColor=''; });
+dz.addEventListener('drop', e=>{
+  e.preventDefault(); dz.style.borderColor='';
+  if (e.dataTransfer.files.length) handleUpload(e.dataTransfer.files);
+});
+
+renderExamples();
+renderDocs();
+renderChat();
+</script>
+</body>
+</html>
